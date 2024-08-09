@@ -1,0 +1,125 @@
+from airflow.models import DAG, TaskInstance
+from airflow.exceptions import AirflowSkipException
+from airflow.operators.python import PythonOperator
+from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+
+# from datetime import datetime, timedelta
+# from airflow.utils.dates import datetime
+
+from datetime import datetime, timedelta
+
+# import datetime
+ 
+import csv
+import logging
+import pandas as pd
+ 
+from store_info_service.shoppertrak_tasks import move_data_to_s3
+
+ 
+ 
+DAG_ID="checker1"
+SFTP_CONN_ID = "live_shoppertrak_sftp"
+AWS_CONN_ID = "aws_conn"
+ 
+SFTP_PATH = "Foot/"
+SFTP_FILE_PATTERN = "KurtGeigerDailyReport_%s.csv"
+S3_BUCKET = "korramanikumar"
+S3_BUCKET_PATH = "Data/"
+S3_FILE_PATTERN = "KurtGeigerDailyReport_%s.csv"
+ 
+SNOWFLAKE_CONN_ID = "snowflake_conn"
+SNOWFLAKE_DATABASE = "airflow_db"
+SNOWFLAKE_SCHEMA = "public"
+SNOWFLAKE_TABLE= "foot_fall_daily"
+SNOWFLAKE_STAGE="manhattan/"
+SNOWFLAKE_WAREHOUSE="COMPUTE_WH"
+ 
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=5),
+    "params": {
+        "file_name": S3_FILE_PATTERN,
+        "bucket_path": S3_BUCKET_PATH,
+        "bucket_name": S3_BUCKET
+    },
+    'catchup': True
+}
+ 
+import logging
+
+import logging
+import json
+
+def find_remote_sftp_csv_file(task_instance, **kwargs):
+    sftp_hook = SFTPHook(ssh_conn_id=SFTP_CONN_ID)
+    remote_file_path = "{}/{}".format(SFTP_PATH, SFTP_FILE_PATTERN % task_instance.execution_date.strftime('%Y-%m-%d'))
+#to do check for alternative
+    with sftp_hook.get_conn() as sftp_client:
+        with sftp_client.open(remote_file_path, 'r') as remote_file:
+            csv_content = remote_file.read()
+           
+    csv_content_str = csv_content.decode('utf-8')
+
+    task_instance.xcom_push(key='csv_content', value=csv_content_str)
+
+    return csv_content_str
+
+  
+
+
+
+def process_csv_content(task_instance, **kwargs):
+    csv_content_str = task_instance.xcom_pull(task_ids='find_remote_csv_file', key='csv_content')
+    execution_date = task_instance.execution_date.strftime("%d/%m/%Y")
+    
+    processed_csv_content = []
+    for line in csv_content_str.split('\n'):
+        
+        
+        if not line.strip(): # to remove date value at the end of file 
+            continue
+        processed_line = f"{line.strip()},{execution_date}" # to remove date to be printed in new line 
+        processed_csv_content.append(processed_line)
+    processed_csv_content_str = '\n'.join(processed_csv_content)
+    logging.info("Processed CSV content:\n%s", processed_csv_content_str)
+    task_instance.xcom_push(key='processed_csv_content', value=processed_csv_content_str)
+
+
+
+
+with DAG(
+    dag_id=DAG_ID,
+    default_args=default_args,
+    description='A DAG to retrieve CSV files from remote SFTP server',
+    schedule_interval='@daily',
+    start_date=datetime(2024, 5, 1)
+) as dag:
+
+    find_remote_csv_task = PythonOperator(
+        task_id='find_remote_csv_file',
+        python_callable=find_remote_sftp_csv_file,
+        provide_context=True
+    )
+
+process_csv_task = PythonOperator(
+    task_id='process_csv_content',
+    python_callable=process_csv_content,
+    provide_context=True,
+    dag=dag
+)
+move_shoppertrak_info_data_to_s3_task = PythonOperator(
+    task_id="move_shoppertrak_info_data_to_s3_task",
+    python_callable=move_data_to_s3,
+    provide_context=True,
+    op_kwargs={},
+)
+
+find_remote_csv_task >> process_csv_task >> move_shoppertrak_info_data_to_s3_task
+
+

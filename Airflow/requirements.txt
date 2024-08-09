@@ -1,0 +1,6 @@
+apache-airflow-providers-snowflake
+apache-airflow-providers-amazon
+apache-airflow[s3]
+apache-airflow-providers-sftp
+paramiko
+s3fs

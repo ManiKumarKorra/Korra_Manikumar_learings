@@ -1,0 +1,178 @@
+from airflow.models import DAG, TaskInstance
+from airflow.operators.python import PythonOperator
+from airflow.exceptions import AirflowSkipException
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.utils.dates import datetime
+from datetime import datetime, timedelta
+from web_sales_s3.tasks import move_data_to_s3
+import csv
+import logging
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+import os
+
+
+DAG_ID="web_sales_load"
+
+AWS_CONN_ID = "aws_conn"
+
+SOURCE_S3_BUCKET = "korramanikumar"
+date_str = datetime.now().strftime("%Y-%m-%d")
+
+
+
+SOURCE_S3_FILE_PATTERN = "Data/WEB-SALES-%s.csv" % datetime.now().strftime("%Y-%m-%d")
+
+# SOURCE_S3_FILE_PATTERN = 'Data/WEB-SALES-2024-05-15.*.csv'
+
+
+# SOURCE_S3_FILE_PATTERN = 'Data/WEB-SALES-{}-*.csv'.format(current_date)
+
+
+
+
+# ile_name = '.*DOM-%s.*[.]csv' % datetime.now().strftime("%Y-%m-%d")
+SOURCE_S3_TEMP_DIR   = "/tmp"
+
+DEST_S3_BUCKET = "korramanikumar"
+DEST_S3_BUCKET_PATH = "transformated_data/"
+DEST_S3_FILE_PATTERN = "web_sales-%s.csv" 
+snowflake_pattern = "web_sales-2024-05-14.csv" 
+
+
+SNOWFLAKE_CONN_ID = "snowflake_conn"
+SNOWFLAKE_DATABASE = "airflow_db"
+SNOWFLAKE_SCHEMA = "public"
+SNOWFLAKE_TABLE= "web_sales"
+SNOWFLAKE_STAGE="web_sales/"
+SNOWFLAKE_WAREHOUSE="COMPUTE_WH"
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=5),
+    "params": {
+        "dest_file_name": DEST_S3_FILE_PATTERN,
+        "dest_bucket_path": DEST_S3_BUCKET_PATH,
+        "dest_bucket_name": DEST_S3_BUCKET
+    },
+    'catchup': False
+}
+
+
+def download_from_s3(task_instance: TaskInstance, **kwargs):
+    s3_hook = S3Hook(aws_conn_id="aws_conn")  # Assuming you have set up the AWS connection in Airflow
+    # Initialize the variable
+    try:
+        # List keys matching the file pattern
+        response = s3_hook.list_keys(bucket_name=SOURCE_S3_BUCKET, prefix='Data/WEB-SALES-2024-05-15')
+       
+        if response:
+            for obj in response:
+                key = obj
+                # Download each file individually
+                download_path = os.path.join(SOURCE_S3_TEMP_DIR, os.path.basename(key))
+                # downloaded_file_path = S3Hook(aws_conn_id="aws_conn").get_conn().download_file(SOURCE_S3_BUCKET, key, download_path)
+                with open(download_path, 'r') as file:
+                    file_content = file.read()
+                            
+        else:
+            logging.info("No files found matching the pattern.")
+    
+        if download_path != '':
+            logging.info("File downloaded successfully: %s", download_path)
+            task_instance.xcom_push(key='downloaded_file', value= file_content) 
+    except Exception as ex:
+        raise RuntimeError(f"Error downloading file from S3: {ex}")
+
+
+
+
+    
+
+def process_csv_file(task_instance: TaskInstance, **kwargs):
+    # Pull the CSV data from XCom
+    csv_data = task_instance.xcom_pull(task_ids="download_from_s3_task", key="downloaded_file")     
+
+    # Check if data is not None
+    if csv_data:
+        # Log the content of the pulled file
+        logging.info(f"CSV data pulled from XCom: {csv_data}")
+
+        # Transform the CSV data
+        transformed_data = []
+        lines = csv_data.split('\n')  # Convert CSV data into a list of lines
+        reader = csv.reader(lines)
+        headers = next(reader)  # Get header row
+    
+        # Map the column names
+        modified_headers = []
+        name_count = 0
+        for idx, header in enumerate(headers):
+            if header == 'Date':
+                modified_headers.append('File Date' if idx == 0 else 'Date')
+            elif header == 'Name':
+                name_count += 1
+                modified_headers.append('Branch Name' if name_count == 1 else 'Line Name')
+            else:
+                modified_headers.append(header)
+    
+        transformed_data.append(','.join(modified_headers))  # Write modified headers
+        transformed_data.extend(lines[1:])  # Write remaining rows, excluding the header
+    
+        transformed_web_sales = '\n'.join(transformed_data)
+        task_instance.xcom_push(key='transformed_web_sales_data', value=transformed_web_sales)  
+    else:
+        logging.warning("No CSV data found in XCom.")
+
+
+
+with DAG(
+    DAG_ID,
+    description="Copy data from  S3 bucket and load into snowflake 'web_sales' table",
+    default_args=default_args,
+    start_date=datetime(2024, 5, 10, 0, 0, 0),
+    schedule_interval='@daily',
+    # template_searchpath="/dags/includes/sql/public/",
+    catchup=False
+) as dag:
+   
+    download_from_s3_task = PythonOperator(
+        task_id="download_from_s3_task",
+        python_callable=download_from_s3,
+        provide_context=True,
+       
+    ) 
+
+    process_csv_file_task = PythonOperator(
+        task_id="process_csv_file_task",
+        python_callable=process_csv_file,
+        provide_context=True,
+        #op_kwargs={},
+    ) 
+
+    move_data_to_s3_task = PythonOperator(
+        task_id="move_data_to_s3_task",
+        python_callable=move_data_to_s3,
+        provide_context=True,
+        op_kwargs={},
+    )
+
+    copy_s3_snowflake_to_web_sales_table = SnowflakeOperator(
+        task_id="copy_s3_snowflake_to_web_sales_table",
+        snowflake_conn_id=SNOWFLAKE_CONN_ID,
+        sql="copy_s3_snowflake_to_web_sales.sql",
+        params={
+            "database": SNOWFLAKE_DATABASE,
+            "schema": SNOWFLAKE_SCHEMA,
+            "table": SNOWFLAKE_TABLE,
+            "stage": SNOWFLAKE_STAGE,
+           },
+        warehouse=SNOWFLAKE_WAREHOUSE,
+        dag=dag
+    )
+
+    download_from_s3_task >> process_csv_file_task >> move_data_to_s3_task >> copy_s3_snowflake_to_web_sales_table

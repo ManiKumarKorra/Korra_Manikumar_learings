@@ -1,0 +1,5 @@
+Date,Year,Period,Week No.,Week of month,Day of Week,Branch,Name,Date,Type,Collection,Brand,Line,Name,Size,Units,Cost,Retail,V.A.T.,Invoice No.,UPC Code,Commodity Code,Disc Reason Code,Flight Code,Destination,Destination Code,Destination Name
+2024-05-01,2024,5,18,1,Monday,Branch_A,Product_A,2024-05-01,Type_A,Collection_A,Brand_A,Line_A,Name_A,10,100,500,1000,20,INV001,123456789012,ABC123,DISC001,FL001,Location_A,001,Location_A_Name
+2024-05-02,2024,5,18,1,Tuesday,Branch_B,Product_B,2024-05-02,Type_B,Collection_B,Brand_B,Line_B,Name_B,20,200,600,1200,30,INV002,234567890123,DEF456,DISC002,FL002,Location_B,002,Location_B_Name
+2024-05-03,2024,5,18,1,Wednesday,Branch_C,Product_C,2024-05-03,Type_C,Collection_C,Brand_C,Line_C,Name_C,30,300,700,1300,40,INV003,345678901234,GHI789,DISC003,FL003,Location_C,003,Location_C_Name
+
