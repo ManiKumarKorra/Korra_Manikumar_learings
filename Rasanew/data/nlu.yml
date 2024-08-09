@@ -1,0 +1,135 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hello there
+    - good morning
+    - good evening
+    - moin
+    - hey there
+    - let's go
+    - hey dude
+    - goodmorning
+    - goodevening
+    - good afternoon
+
+- intent: goodbye
+  examples: |
+    - cu
+    - good by
+    - cee you later
+    - good night
+    - bye
+    - goodbye
+    - have a nice day
+    - see you around
+    - bye bye
+    - see you later
+
+- intent: affirm
+  examples: |
+    - yes
+    - y
+    - indeed
+    - of course
+    - that sounds good
+    - correct
+
+- intent: deny
+  examples: |
+    - no
+    - n
+    - never
+    - I don't think so
+    - don't like that
+    - no way
+    - not really
+
+- intent: mood_great
+  examples: |
+    - perfect
+    - great
+    - amazing
+    - feeling like a king
+    - wonderful
+    - I am feeling very good
+    - I am great
+    - I am amazing
+    - I am going to save the world
+    - super stoked
+    - extremely good
+    - so so perfect
+    - so good
+    - so perfect
+
+- intent: mood_unhappy
+  examples: |
+    - my day was horrible
+    - I am sad
+    - I don't feel very well
+    - I am disappointed
+    - super sad
+    - I'm so sad
+    - sad
+    - very sad
+    - unhappy
+    - not good
+    - not very good
+    - extremly sad
+    - so saad
+    - so sad
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot?
+    - are you a human?
+    - am I talking to a bot?
+    - am I talking to a human?
+
+- intent: thank
+  examples: |
+    - thank you
+    - thanks
+    - I appreciate it
+    - thanks a lot
+
+- intent : nutritional_value
+  examples : |
+    - what is the nutritional value of [pizza] (food)
+    - what is the calories in [chicken] (food)
+    - how many calories are in [banana](food)?
+    - tell me the nutritional facts for [broccoli](food)
+    - what's the nutrition info for [salmon](food)?
+    - can you provide the nutritional information of [rice](food)?
+    - I'd like to know the nutrition content of [apple](food)
+    - how many carbs are in [pasta](food)?
+    - what are the protein contents in [tofu](food)?
+    - give me the nutritional breakdown of [avocado](food)
+    - what are the fat contents in [beef](food)?
+    - how much sugar is there in [orange](food)?
+    - what is the fiber content of [oatmeal](food)?
+    - how many vitamins are in [spinach](food)?
+    - can you tell me the minerals present in [almonds](food)?
+    - what is the energy value of [bread](food)?
+    - what is the nutritional composition of [milk](food)?
+    - how many nutrients are there in [carrot](food)?
+    - give me the diet facts for [egg](food)
+    - how many calories does [cheese](food) have?
+    - tell me the macro and micronutrients in [lentils](food)
+    - provide the nutritional profile of [yogurt](food)
+    - what's the nutritional value for 100g of [chocolate](food)?
+    - how healthy is [quinoa](food)?
+    - What is the calorie content in [chicken](food)?
+    - How many calories are there in [apple](food)?
+    - Tell me the calories in [pizza](food).
+    - I want to know the nutritional value of [broccoli](food).
+    - How much protein is in [fish](food)?
+
+  
+  
+
+  
