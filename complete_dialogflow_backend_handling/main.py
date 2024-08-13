@@ -2,64 +2,101 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import requests
 import logging
-logging.basicConfig(level=logging.DEBUG)  
+import json
 
+logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI()
 
 @app.post("/")
 async def handle_request(request: Request):
+    try:
+        payload = await request.json()
+        intent = payload['queryResult']['intent']['displayName']
+        
+        if intent == "nutritional_value":
+            fulfillment_text = handle_nutritional_value(payload)
+        elif intent == "human_handoff":
+            fulfillment_text = "Connect with a human agent."
+        elif intent == 'order_list':
+            fulfillment_text = order_details(payload)
+        else:
+            fulfillment_text = "Intent not recognized."
+        
+        return JSONResponse(content={
+            "fulfillmentText": fulfillment_text
+        })
+    except KeyError as e:
+        logging.error(f"KeyError: {e}")
+        return JSONResponse(content={
+            "fulfillmentText": "Invalid request payload."
+        })
+    except Exception as e:
+        logging.error(f"Exception: {e}")
+        return JSONResponse(content={
+            "fulfillmentText": "An error occurred."
+        })
 
-    payload = await request.json()
-    intent = payload['queryResult']['intent']['displayName']
-    # food_items = payload['queryResult']['parameters']['food_items']
+def order_details(payload):
+    url = "https://magento2-demo.scandiweb.com/rest/V1/orders?searchCriteria[filterGroups][0][filters][0][field]=customer_id&searchCriteria[filterGroups][0][filters][0][value]=3&searchCriteria[filterGroups][0][filters][0][condition_type]=eq"
 
-    if intent == "nutritional_value":
-        fulfillment_text =  handle_nutritional_value(payload, intent)
-    elif intent == "human_handoff":
-       
-        fulfillment_text = "hey thete"
-   
-    else:
-        fulfillment_text = "Intent not recognized."
-    
-
-    return JSONResponse(content={
-        "fulfillmentText": fulfillment_text
+    payload = json.dumps({
+    "username": "scandiweb",
+    "password": "admin1234"
     })
 
-def handle_operator_request():
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzNTM3MzkwLCJleHAiOjE3MjM1NDA5OTB9.85LGxtfwwQXY1P8A-NcZ1f1eg9bwUxnCq5TQcoxdTs4',
+    'Cookie': 'PHPSESSID=da15aa48e8cc2ff8c6c591f50846606b; mage-messages=%5B%7B%22type%22%3A%22error%22%2C%22text%22%3A%22Invalid%20Form%20Key.%20Please%20refresh%20the%20page.%22%7D%5D; private_content_version=1525e52799f79b31007fd7968f1d8845'
+    }
+    response = requests.request("GET", url, headers=headers, data=payload)
 
-    fulfillment_text =  "connect with human agent "
-    return fulfillment_text
+    data = json.loads(response.text)
 
 
-def handle_nutritional_value(payload,intent):
-    food_item = payload['queryResult']['parameters']['food_items']
+    fulfillment_text = 'order item is  '
+    names = ''
+    status =''
+    for item in data["items"]:
+        for sub_item in item["items"]:
+            names += (sub_item['name'])
+            fulfillment_text+=names + " "
+        for j in  item:
+            if j == 'status':
+                status+=item[j]
+                fulfillment_text+="and its status is " +  status + " "
+                
+        return fulfillment_text
+    else:
+        logging.error(f"Order details request failed with status code {response.status_code}")
+        return "Failed to retrieve order details."
+
+def handle_nutritional_value(payload):
+    try:
+        food_item = payload['queryResult']['parameters']['food_items']
+    except KeyError:
+        logging.error("food_items parameter missing.")
+        return "Food item not provided."
+
     
     query = f'https://api.api-ninjas.com/v1/nutrition?query={food_item}'
     headers = {"X-Api-Key":"kq3b/eNU4Ljxy7iR+/hJQA==jQZpWToMZiInWMXS"}
 
-    response = requests.get(query,headers= headers)
+    response = requests.get(query, headers=headers)
 
     if response.status_code == 200:
-
         nutritional_data = response.json()
-
-        finalnutritional_value =""
+        final_nutritional_value = ""
 
         for data in nutritional_data:
-            for j in data:
-                finalnutritional_value+= f'{j} : {data[j]} '
+            for key, value in data.items():
+                final_nutritional_value += f'{key}: {value} '
 
-        fulfillment_text = f"{intent} for {food_item}: {finalnutritional_value}"
-         
+        return f"Nutritional value for {food_item}: {final_nutritional_value}"
     else:
-        fulfillment_text= "invalid yar"
-      
-    return fulfillment_text
-
- 
+        logging.error(f"Nutritional value request failed with status code {response.status_code}")
+        return "Failed to retrieve nutritional information."
 
 if __name__ == "__main__":
     import uvicorn
