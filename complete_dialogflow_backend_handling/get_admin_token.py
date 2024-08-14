@@ -1,11 +1,11 @@
 import requests
 import json
 
-url = "https://demo-magento-2.auroracreation.com/rest/V1/integration/admin/token"
+url = "https://magento2-demo.scandiweb.com/rest/V1/integration/admin/token"
 
 payload = json.dumps({
-  "username": "demo_admin",
-  "password": "demo_admin123"
+  "username": "scandiweb",
+  "password": "admin1234"
 })
 headers = {
   'Content-Type': 'application/json',
