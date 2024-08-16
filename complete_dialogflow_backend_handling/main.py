@@ -20,6 +20,10 @@ async def handle_request(request: Request):
             fulfillment_text = "Connect with a human agent."
         elif intent == 'order_list':
             fulfillment_text = order_details(payload)
+        elif intent == 'Show_Products':
+            fulfillment_text =  get_product_fulfillment()
+            # fulfillment_text =  "working webhooks"
+
         else:
             fulfillment_text = "Intent not recognized."
         
@@ -47,7 +51,7 @@ def order_details(payload):
     })
     headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzNjQxNDI0LCJleHAiOjE3MjM2NDUwMjR9.cYCxfRbrfTeAEVuEhCoYYkIAj_iKoUgdpPTnZ9ojzsU',
+    'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzODEzNzI5LCJleHAiOjE3MjM4MTczMjl9.tZu7h-jjuMCK06t0-eOz-MVMNLRqgOrmiEvurUnERik',
     'Cookie': 'PHPSESSID=da15aa48e8cc2ff8c6c591f50846606b; mage-messages=%5B%7B%22type%22%3A%22error%22%2C%22text%22%3A%22Invalid%20Form%20Key.%20Please%20refresh%20the%20page.%22%7D%5D; private_content_version=1525e52799f79b31007fd7968f1d8845'
     }
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -125,6 +129,79 @@ def handle_nutritional_value(payload):
     else:
         logging.error(f"Nutritional value request failed with status code {response.status_code}")
         return "Failed to retrieve nutritional information."
+
+import requests
+import json
+
+def get_product_fulfillment():
+    # URL to fetch products with specified page size and current page
+    url = "https://magento2-demo.scandiweb.com/rest/V1/products?searchCriteria[pageSize]=4&searchCriteria[currentPage]=1"
+
+    # Headers including the authorization token
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzODEzNzI5LCJleHAiOjE3MjM4MTczMjl9.tZu7h-jjuMCK06t0-eOz-MVMNLRqgOrmiEvurUnERik',
+    }
+
+    # Send the GET request to the Magento API
+    response = requests.get(url, headers=headers)
+    products = response.json()
+
+    # Extract the first product's name and image
+    if products['items']:
+        first_product = products['items'][0]
+        name = first_product['name']
+        image = first_product['media_gallery_entries'][0]['file'] if first_product['media_gallery_entries'] else None
+
+        # Prepare the fulfillment response for Dialogflow
+        fulfillment_response = {
+            "fulfillmentMessages": [
+                {
+                    "payload": {
+                        "google": {
+                            "expectUserResponse": True,
+                            "richResponse": {
+                                "items": [
+                                    {
+                                        "simpleResponse": {
+                                            "textToSpeech": f"Product Name: {name}"
+                                        }
+                                    },
+                                    {
+                                        "basicCard": {
+                                            "title": name,
+                                            "subtitle": "Product Image",
+                                            "formattedText": f"Product Name: {name}",
+                                            "image": {
+                                                "url": f"https://magento2-demo.scandiweb.com/pub/media/catalog/product{image}",
+                                                "accessibilityText": name
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+
+        return json.dumps(fulfillment_response, indent=2)
+
+    return json.dumps({
+        "fulfillmentMessages": [
+            {
+                "text": {
+                    "text": ["No products found."]
+                }
+            }
+        ]
+    }, indent=2)
+
+# Example of how to call the function and get the fulfillment response
+# fulfillment_response = get_product_fulfillment()
+# print(fulfillment_response)
+
 
 if __name__ == "__main__":
     import uvicorn
