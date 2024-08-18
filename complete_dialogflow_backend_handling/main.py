@@ -4,9 +4,7 @@ import requests
 import logging
 import json
 import human_handoff
-
-import requests
-import json
+import get_admin_token
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -54,14 +52,21 @@ def order_details(payload):
     "username": "scandiweb",
     "password": "admin1234"
     })
+
+    bearer_token = get_admin_token.get_admin_token_function()
+ 
+
+
     headers = {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzODEzNzI5LCJleHAiOjE3MjM4MTczMjl9.tZu7h-jjuMCK06t0-eOz-MVMNLRqgOrmiEvurUnERik',
+    
+    'Authorization': bearer_token ,
     'Cookie': 'PHPSESSID=da15aa48e8cc2ff8c6c591f50846606b; mage-messages=%5B%7B%22type%22%3A%22error%22%2C%22text%22%3A%22Invalid%20Form%20Key.%20Please%20refresh%20the%20page.%22%7D%5D; private_content_version=1525e52799f79b31007fd7968f1d8845'
     }
     response = requests.request("GET", url, headers=headers, data=payload)
 
     data = json.loads(response.text)
+    # print(data)
 
     def fetch_product_details(data, product_id):
     # Iterate through the orders in the items list
@@ -136,59 +141,57 @@ def handle_nutritional_value(payload):
         return "Failed to retrieve nutritional information."
 
 import json
-
 def get_product_fulfillment():
     # Prepare the simplified fulfillment response for Dialogflow
-    
+    bearer_token = get_admin_token.get_admin_token_function()
+
+
     url = "https://magento2-demo.scandiweb.com/rest/V1/products?searchCriteria[pageSize]=3&searchCriteria[currentPage]=4"
+
 
     # Headers including the authorization token
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzOTY4MTM4LCJleHAiOjE3MjM5NzE3Mzh9.378P79zaMTBd1ago7s9wZ6yhRWq_5XcvlKZOlmYQHII',
+        'Authorization': bearer_token,
     }
 
     # Send the GET request to the Magento API
     response = requests.get(url, headers=headers)
     products = response.json()
 
-    # Extracting the product name and image
+    # Extracting the product details
     product_details = []
     for item in products['items']:
         name = item['name']
         image = item['media_gallery_entries'][0]['file'] if item['media_gallery_entries'] else None
-        product_details.append({"name": name, "image": image})
+        image_url = f"https://magento2-demo.scandiweb.com/pub/media/catalog/product{image}" if image else "https://via.placeholder.com/150"
+        product_details.append({"name": name, "image_url": image_url})
 
-    # Debug: Print the image URL to verify
-    if product_details[0]['image']:
-        image_url = f"https://magento2-demo.scandiweb.com/pub/media/catalog/product{product_details[0]['image']}"
-    else:
-        image_url = "https://via.placeholder.com/150"  # Fallback image URL
-
-    print(f"Image URL: {image_url}")  # For debugging purposes
+    # Prepare the richContent array with all product details
+    rich_content = []
+    for product in product_details:
+        rich_content.append([
+            {
+                "type": "info",
+                "title": product["name"],
+            },
+            {
+                "type": "image",
+                "rawUrl": product["image_url"],
+                "accessibilityText": f"Image of {product['name']}"
+            }
+        ])
 
     # Prepare the response payload for Dialogflow
     response = {
-    "fulfillmentMessages": [
-        {
-            "payload": {
-                "richContent": [
-                    [
-                        {
-                            "type": "info",
-                            "title": product_details[0]["name"],
-                        },
-                        {
-                            "type": "image",
-                            "rawUrl": image_url,
-                            "accessibilityText": "Description of the image"
-                        }
-                    ]
-                ]
+        "fulfillmentMessages": [
+            {
+                "payload": {
+                    "richContent": rich_content
+                }
             }
-        }
-    ]
-}
+        ]
+    }
 
     # Return the JSON response
     return JSONResponse(content=response)
