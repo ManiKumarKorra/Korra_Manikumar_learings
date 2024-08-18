@@ -139,29 +139,61 @@ import json
 
 def get_product_fulfillment():
     # Prepare the simplified fulfillment response for Dialogflow
-    response = {
-        'fulfillmentMessages': [
-            {
-                'payload': {
-                    'richContent': [
-                        [
-                            {
-                                'type': 'chips',
-                                'options': [
-                                    {
-                                        'text': 'working11'
-                                    }
-                                ]
-                            }
-                        ]
-                    ]
-                }
-            }
-        ]
+    
+    url = "https://magento2-demo.scandiweb.com/rest/V1/products?searchCriteria[pageSize]=3&searchCriteria[currentPage]=4"
+
+    # Headers including the authorization token
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzOTY4MTM4LCJleHAiOjE3MjM5NzE3Mzh9.378P79zaMTBd1ago7s9wZ6yhRWq_5XcvlKZOlmYQHII',
     }
+
+    # Send the GET request to the Magento API
+    response = requests.get(url, headers=headers)
+    products = response.json()
+
+    # Extracting the product name and image
+    product_details = []
+    for item in products['items']:
+        name = item['name']
+        image = item['media_gallery_entries'][0]['file'] if item['media_gallery_entries'] else None
+        product_details.append({"name": name, "image": image})
+
+    # Debug: Print the image URL to verify
+    if product_details[0]['image']:
+        image_url = f"https://magento2-demo.scandiweb.com/pub/media/catalog/product{product_details[0]['image']}"
+    else:
+        image_url = "https://via.placeholder.com/150"  # Fallback image URL
+
+    print(f"Image URL: {image_url}")  # For debugging purposes
+
+    # Prepare the response payload for Dialogflow
+    response = {
+    "fulfillmentMessages": [
+        {
+            "payload": {
+                "richContent": [
+                    [
+                        {
+                            "type": "info",
+                            "title": product_details[0]["name"],
+                        },
+                        {
+                            "type": "image",
+                            "rawUrl": image_url,
+                            "accessibilityText": "Description of the image"
+                        }
+                    ]
+                ]
+            }
+        }
+    ]
+}
 
     # Return the JSON response
     return JSONResponse(content=response)
+
+
 
 
 if __name__ == "__main__":
