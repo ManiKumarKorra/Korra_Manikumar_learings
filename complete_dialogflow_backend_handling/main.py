@@ -3,6 +3,11 @@ from fastapi.responses import JSONResponse
 import requests
 import logging
 import json
+import human_handoff
+
+import requests
+import json
+
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -17,11 +22,11 @@ async def handle_request(request: Request):
         if intent == "nutritional_value":
             fulfillment_text = handle_nutritional_value(payload)
         elif intent == "Operator_Request":
-            fulfillment_text = "Connect with a human agent."
+            fulfillment_text =human_handoff.handle_human_handoff(payload)
         elif intent == 'order_list':
             fulfillment_text = order_details(payload)
         elif intent == 'Show_Products':
-            fulfillment_text =  get_product_fulfillment()
+            return  get_product_fulfillment()
             # fulfillment_text =  "working webhooks"
 
         else:
@@ -130,77 +135,33 @@ def handle_nutritional_value(payload):
         logging.error(f"Nutritional value request failed with status code {response.status_code}")
         return "Failed to retrieve nutritional information."
 
-import requests
 import json
 
 def get_product_fulfillment():
-    # URL to fetch products with specified page size and current page
-    url = "https://magento2-demo.scandiweb.com/rest/V1/products?searchCriteria[pageSize]=4&searchCriteria[currentPage]=1"
-
-    # Headers including the authorization token
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer eyJraWQiOiIxIiwiYWxnIjoiSFMyNTYifQ.eyJ1aWQiOjEsInV0eXBpZCI6MiwiaWF0IjoxNzIzODEzNzI5LCJleHAiOjE3MjM4MTczMjl9.tZu7h-jjuMCK06t0-eOz-MVMNLRqgOrmiEvurUnERik',
-    }
-
-    # Send the GET request to the Magento API
-    response = requests.get(url, headers=headers)
-    products = response.json()
-
-    # Extract the first product's name and image
-    if products['items']:
-        first_product = products['items'][0]
-        name = first_product['name']
-        image = first_product['media_gallery_entries'][0]['file'] if first_product['media_gallery_entries'] else None
-
-        # Prepare the fulfillment response for Dialogflow
-        fulfillment_response = {
-            "fulfillmentMessages": [
-                {
-                    "payload": {
-                        "google": {
-                            "expectUserResponse": True,
-                            "richResponse": {
-                                "items": [
+    # Prepare the simplified fulfillment response for Dialogflow
+    response = {
+        'fulfillmentMessages': [
+            {
+                'payload': {
+                    'richContent': [
+                        [
+                            {
+                                'type': 'chips',
+                                'options': [
                                     {
-                                        "simpleResponse": {
-                                            "textToSpeech": f"Product Name: {name}"
-                                        }
-                                    },
-                                    {
-                                        "basicCard": {
-                                            "title": name,
-                                            "subtitle": "Product Image",
-                                            "formattedText": f"Product Name: {name}",
-                                            "image": {
-                                                "url": f"https://magento2-demo.scandiweb.com/pub/media/catalog/product{image}",
-                                                "accessibilityText": name
-                                            }
-                                        }
+                                        'text': 'working11'
                                     }
                                 ]
                             }
-                        }
-                    }
-                }
-            ]
-        }
-
-        return json.dumps(fulfillment_response, indent=2)
-
-    return json.dumps({
-        "fulfillmentMessages": [
-            {
-                "text": {
-                    "text": ["No products found."]
+                        ]
+                    ]
                 }
             }
         ]
-    }, indent=2)
+    }
 
-# Example of how to call the function and get the fulfillment response
-# fulfillment_response = get_product_fulfillment()
-# print(fulfillment_response)
+    # Return the JSON response
+    return JSONResponse(content=response)
 
 
 if __name__ == "__main__":
