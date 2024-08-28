@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+
+    <div>
+        <p>in this we gonna learn about onload event bascilly once html dom loaded completely (until /html>) a event will </p>
+    </div>
+    <div id = 'test'>
+        <p>this content will chnage once dom loaded completely</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded',()=>{
+            document.getElementById('test').innerHTML= `<h>content has changed since it loaded </h>`
+        })
+    </script>
+    
+</body>
+</html>
