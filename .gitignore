@@ -1,0 +1,4 @@
+summary_generate_based_on_query/.env
+summary_generate_based_on_query/__pycache__
+summary_generate_based_on_query/storage
+summary_generate_based_on_query/data

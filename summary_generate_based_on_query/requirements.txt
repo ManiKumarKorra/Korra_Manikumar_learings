@@ -1,0 +1,5 @@
+llama-index
+llama_index
+openai
+pypdf
+python-dotenv
